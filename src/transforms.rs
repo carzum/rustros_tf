@@ -107,13 +107,34 @@ pub fn invert_transform(transform: &Transform) -> Transform {
 }
 
 ///Chain multiple transforms together. Takes in a vector of transforms. The vector should be in order of desired transformations
-pub fn chain_transforms(transforms: &Vec<Transform>) -> Transform {    
-    let mut final_transform = Array::eye(4);
-    for t in transforms {
-        let tf = se3_from_transform(&t);
-        final_transform = tf.dot(&final_transform);
-    } 
-    transform_from_se3(&final_transform)
+pub fn chain_transforms(transforms: &Vec<Transform>) -> Transform {
+    let tra = geometry::Translation3::new(0.0, 0.0, 0.0);
+    let rot = geometry::UnitQuaternion::new_normalize(
+        geometry::Quaternion::new(1.0, 0.0, 0.0, 0.0));
+    let mut final_iso = geometry::Isometry3::from_parts(tra, rot);
+    for tf in transforms {
+
+        let tra = geometry::Translation3::new(tf.position.x, tf.position.y,
+                                          tf.position.z);
+        let rot = geometry::UnitQuaternion::new_normalize(
+            geometry::Quaternion::new(
+                tf.orientation.w, tf.orientation.x,
+                tf.orientation.y, tf.orientation.z));
+        let iso = geometry::Isometry3::from_parts(tra, rot);
+        final_iso = final_iso * iso;
+    }
+
+    Transform{orientation: Quaternion{
+            x: final_iso.rotation[3],
+            y: final_iso.rotation[0],
+            z: final_iso.rotation[1],
+            w: final_iso.rotation[2]
+        },
+        position: Position{
+            x: final_iso.translation.x,
+            y: final_iso.translation.y,
+            z: final_iso.translation.z
+        }}
 }
 
 pub fn interpolate(t1: Transform, t2: Transform, weight: f64) -> Transform {
